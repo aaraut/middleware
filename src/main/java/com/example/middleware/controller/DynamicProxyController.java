@@ -1,8 +1,10 @@
 package com.example.middleware.controller;
 
 import com.example.middleware.model.DataModel;
+import com.example.middleware.repository.DataModelRepository;
 import com.example.middleware.service.BackendServiceDiscovery;
 import com.example.middleware.service.FallbackService;
+import com.example.middleware.service.OpenAIService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -26,13 +28,19 @@ public class DynamicProxyController {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
+    @Autowired
+    private DataModelRepository dataModelRepository;
+
+    @Autowired
+    private OpenAIService openAIService;
+
     @RequestMapping("/**")
     public ResponseEntity<String> proxyRequest(
             HttpServletRequest request,
             @RequestBody(required = false) String body) {
 
         // Construct the backend URL
-        String backendUrl = serviceDiscovery.getBaseUrl() + request.getRequestURI().replace("/proxy", "");
+        String backendUrl = "http://localhost:8081" + request.getRequestURI().replace("/proxy", "");
 
         try {
             // Attempt to forward the request
@@ -42,6 +50,7 @@ public class DynamicProxyController {
                     new HttpEntity<>(body, getHeaders(request)),
                     String.class
             );
+            // Save data for fallback scenarios
             saveFallbackData(request, body, response.getBody());
             return response;
         } catch (HttpClientErrorException e) {
@@ -55,6 +64,23 @@ public class DynamicProxyController {
         }
     }
 
+    private ResponseEntity<String> getFallbackResponse(HttpServletRequest request, String body) {
+        // Fetch fallback data from the database
+        Optional<DataModel> dataModelOpt = dataModelRepository.findByActionAndUrlAndRequest(
+                request.getMethod(),
+                request.getRequestURI().replace("/proxy", ""),
+                body
+        );
+
+        if (dataModelOpt.isPresent()) {
+            return ResponseEntity.ok(dataModelOpt.get().getResponse());
+        } else {
+            // Generate dummy data using OpenAI
+            String prompt = "Generate dummy data for request body: " + body;
+            String generatedData = openAIService.generateDummyData(prompt);
+            return ResponseEntity.ok(generatedData);
+        }
+    }
 
     private HttpHeaders getHeaders(HttpServletRequest request) {
         HttpHeaders headers = new HttpHeaders();
@@ -69,20 +95,9 @@ public class DynamicProxyController {
     private void saveFallbackData(HttpServletRequest request, String requestBody, String responseBody) {
         DataModel dataModel = new DataModel();
         dataModel.setAction(request.getMethod());
-        dataModel.setUrl(request.getRequestURI());
+        dataModel.setUrl(request.getRequestURI().replace("/proxy", ""));
         dataModel.setRequest(requestBody);
         dataModel.setResponse(responseBody);
-        fallbackService.saveFallbackData(dataModel);
-    }
-
-    private ResponseEntity<String> getFallbackResponse(HttpServletRequest request, String requestBody) {
-        Optional<DataModel> fallbackData = fallbackService.getFallbackData(
-                request.getMethod(),
-                request.getRequestURI(),
-                requestBody
-        );
-        return fallbackData.isPresent() ?
-                ResponseEntity.ok(fallbackData.get().getResponse()) :
-                ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("No fallback data available");
+        dataModelRepository.save(dataModel);
     }
 }

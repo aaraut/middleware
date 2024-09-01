@@ -18,3 +18,6 @@ spring:
 middleware:
   backend-service:
     url: http://localhost:8081/api
+openai:
+  api:
+    key: 3718b706-6942-4737-98a6-f648931a1eeb
