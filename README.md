@@ -1,5 +1,44 @@
-```
-private String extractCodeFromResponse(String response) {
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class FallbackService {
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    private final String apiKey = "API-full"; // Replace with your actual API key
+    private final String nucleusUrl = "https://openai-nucleus-dev.azpriv-cloud.ubs.net/api/v1/openai-sandbox/chat";
+
+    private String generateDummyData(String schema) throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("api-key", apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, String> systemMessage = new HashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "Assistant is a large language model trained by OpenAI.");
+
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", schema);
+
+        requestBody.put("messages", new Map[]{systemMessage, userMessage});
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(nucleusUrl, entity, Map.class);
+        Map<String, Object> jsonResponse = response.getBody();
+        String content = jsonResponse != null ? (String) jsonResponse.get("result").get("content") : "No response content";
+
+        // Clean up the generated content to get only the code part
+        return extractCodeFromResponse(content);
+    }
+
+    private String extractCodeFromResponse(String response) {
         // Example of basic text cleaning, adjust the pattern based on actual response structure
         // Remove any leading phrases like "Here is the object" or "Here is the code"
         // and keep only the relevant code block
@@ -8,19 +47,9 @@ private String extractCodeFromResponse(String response) {
         // Additional cleaning logic if needed
         // e.g., removing comments or unwanted text
         return cleanedResponse;
-```
-ResponseEntity<Map> response = restTemplate.postForEntity(nucleusUrl, entity, Map.class);
-        Map<String, Object> jsonResponse = response.getBody();
-        String content = jsonResponse != null ? (String) jsonResponse.get("result").get("content") : "No response content";
+    }
+}
 
-        // Clean up the generated content to get only the code part
-        return extractCodeFromResponse(content);
-```
-<dependency>
-    <groupId>org.apache.httpcomponents</groupId>
-    <artifactId>httpclient</artifactId>
-</dependency>
-```
 
 ```
 package com.example.middleware.service;
