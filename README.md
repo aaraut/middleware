@@ -1,3 +1,21 @@
+```
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public String generateDummyData(String schema) throws Exception {
+    // Setup and API call remains the same
+    // ...
+
+    // Convert response to JsonNode for easier processing
+    ObjectMapper mapper = new ObjectMapper();
+    JsonNode responseNode = mapper.convertValue(response.getBody(), JsonNode.class);
+    JsonNode resultNode = responseNode.path("result");
+    String content = resultNode.path("content").asText("No content found");
+
+    return extractCodeFromResponse(content);
+}
+
+```
 Map<String, Object> requestBody = new HashMap<>();
         Map<String, String> systemMessage = new HashMap<>();
         systemMessage.put("role", "system");
