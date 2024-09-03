@@ -1,4 +1,11 @@
 ```
+<dependency>
+    <groupId>org.apache.httpcomponents</groupId>
+    <artifactId>httpclient</artifactId>
+</dependency>
+```
+
+```
 package com.example.middleware.service;
 
 import com.example.middleware.model.DataModel;
