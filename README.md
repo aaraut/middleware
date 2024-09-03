@@ -12,15 +12,13 @@ import com.example.middleware.model.DataModel;
 import com.example.middleware.repository.DataModelRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -29,8 +27,11 @@ public class FallbackService {
     @Autowired
     private DataModelRepository repository;
 
+    @Autowired
+    private RestTemplate restTemplate;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final String apiKey = "API-full"; // Change API key
+    private final String apiKey = "API-full"; // Replace with your actual API key
     private final String nucleusUrl = "https://openai-nucleus-dev.azpriv-cloud.ubs.net/api/v1/openai-sandbox/chat";
 
     public void saveFallbackData(String method, String url, String requestBody, JsonNode responseBody) {
@@ -40,22 +41,14 @@ public class FallbackService {
         if (existingDataModel.isPresent()) {
             // Update existing record
             dataModel = existingDataModel.get();
-            try {
-                dataModel.setResponse(objectMapper.writeValueAsString(responseBody));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            dataModel.setResponse(responseBody.toString());
         } else {
             // Create new record
             dataModel = new DataModel();
             dataModel.setAction(method);
             dataModel.setUrl(url);
-            try {
-                dataModel.setRequest(objectMapper.writeValueAsString(objectMapper.readTree(requestBody)));
-                dataModel.setResponse(objectMapper.writeValueAsString(responseBody));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            dataModel.setRequest(requestBody);
+            dataModel.setResponse(responseBody.toString());
         }
 
         repository.save(dataModel);
@@ -67,7 +60,7 @@ public class FallbackService {
         if (!fallbackData.isPresent()) {
             // Generate dummy data using Nucleus ChatGPT
             try {
-                String schema = "Your schema here"; // Pass schema as needed
+                String schema = "Your schema here"; // Replace with actual schema
                 String generatedResponse = generateDummyData(schema);
                 DataModel dataModel = new DataModel();
                 dataModel.setAction(action);
@@ -76,32 +69,39 @@ public class FallbackService {
                 dataModel.setResponse(generatedResponse);
                 repository.save(dataModel);
                 return Optional.of(dataModel);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
                 return Optional.empty();
             }
         }
-        
+
         return fallbackData;
     }
 
-    private String generateDummyData(String schema) throws IOException {
-        try (CloseableHttpClient client = HttpClients.createDefault()) {
-            HttpPost post = new HttpPost(nucleusUrl);
-            post.setHeader("api-key", apiKey);
-            post.setHeader("Content-Type", "application/json");
+    private String generateDummyData(String schema) throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("api-key", apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-            String jsonPayload = "{ \"messages\": [ { \"role\": \"system\", \"content\": \"Assistant is a large language model trained by OpenAI.\" }, { \"role\": \"user\", \"content\": \"" + schema + "\" } ] }";
-            post.setEntity(new StringEntity(jsonPayload));
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, String> systemMessage = new HashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "Assistant is a large language model trained by OpenAI.");
 
-            try (org.apache.http.client.methods.CloseableHttpResponse response = client.execute(post)) {
-                String responseBody = EntityUtils.toString(response.getEntity());
-                JsonNode jsonResponse = objectMapper.readTree(responseBody);
-                return jsonResponse.get("result").get("content").asText();
-            }
-        }
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", schema);
+
+        requestBody.put("messages", new Map[]{systemMessage, userMessage});
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<JsonNode> response = restTemplate.postForEntity(nucleusUrl, entity, JsonNode.class);
+        JsonNode jsonResponse = response.getBody();
+        return jsonResponse.get("result").get("content").asText();
     }
 }
+
 ```
 
 ```
