@@ -1,4 +1,21 @@
 ```
+private String extractCodeFromResponse(String response) {
+        // Example of basic text cleaning, adjust the pattern based on actual response structure
+        // Remove any leading phrases like "Here is the object" or "Here is the code"
+        // and keep only the relevant code block
+        String cleanedResponse = response.replaceAll("(?i)here is the object|(?i)here is the code|(?i)\\n|(?i)\\r", "").trim();
+
+        // Additional cleaning logic if needed
+        // e.g., removing comments or unwanted text
+        return cleanedResponse;
+```
+ResponseEntity<Map> response = restTemplate.postForEntity(nucleusUrl, entity, Map.class);
+        Map<String, Object> jsonResponse = response.getBody();
+        String content = jsonResponse != null ? (String) jsonResponse.get("result").get("content") : "No response content";
+
+        // Clean up the generated content to get only the code part
+        return extractCodeFromResponse(content);
+```
 <dependency>
     <groupId>org.apache.httpcomponents</groupId>
     <artifactId>httpclient</artifactId>
