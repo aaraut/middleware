@@ -1,23 +1,4 @@
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
-
-import java.util.HashMap;
-import java.util.Map;
-
-public class FallbackService {
-
-    @Autowired
-    private RestTemplate restTemplate;
-
-    private final String apiKey = "API-full"; // Replace with your actual API key
-    private final String nucleusUrl = "https://openai-nucleus-dev.azpriv-cloud.ubs.net/api/v1/openai-sandbox/chat";
-
-    private String generateDummyData(String schema) throws Exception {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("api-key", apiKey);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, Object> requestBody = new HashMap<>();
+Map<String, Object> requestBody = new HashMap<>();
         Map<String, String> systemMessage = new HashMap<>();
         systemMessage.put("role", "system");
         systemMessage.put("content", "Assistant is a large language model trained by OpenAI.");
@@ -31,12 +12,16 @@ public class FallbackService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         ResponseEntity<Map> response = restTemplate.postForEntity(nucleusUrl, entity, Map.class);
-        Map<String, Object> jsonResponse = response.getBody();
-        String content = jsonResponse != null ? (String) jsonResponse.get("result").get("content") : "No response content";
+        Map<String, Object> responseBody = response.getBody();
 
-        // Clean up the generated content to get only the code part
-        return extractCodeFromResponse(content);
-    }
+        if (responseBody != null) {
+            Map<String, Object> result = (Map<String, Object>) responseBody.get("result");
+            String content = result != null ? (String) result.get("content") : "No content found";
+            return extractCodeFromResponse(content);
+        } else {
+            throw new Exception("No response body received from Nucleus API");
+        }
+
 
     private String extractCodeFromResponse(String response) {
         // Example of basic text cleaning, adjust the pattern based on actual response structure
