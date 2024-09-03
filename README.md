@@ -1,5 +1,5 @@
 ```
-Provide a code snippet based on the following schema. Please do not include any introductory text, explanations, or comments. Just provide the code.
+Provide dummy data for the schema below in plain JSON format without comments or code background:
 
 Schema: {
   "type": "object",
