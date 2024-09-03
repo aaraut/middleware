@@ -15,6 +15,31 @@ public String generateDummyData(String schema) throws Exception {
     return extractCodeFromResponse(content);
 }
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class FallbackService {
+
+    // ... other methods ...
+
+    private String extractCodeFromResponse(String response) {
+        // Regular expression to match and remove introductory text
+        String regex = "(?i)It seems you have given schema.*?Here is the object|Here is the code|Here is the.*?code.*";
+        Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(response);
+
+        // Remove unwanted text
+        String cleanedResponse = matcher.replaceAll("").trim();
+
+        // Further clean up if needed
+        // e.g., remove extra new lines or spaces
+        cleanedResponse = cleanedResponse.replaceAll("(?m)^\\s*$(\\n|\\r\\n)+", "").trim();
+
+        return cleanedResponse;
+    }
+}
+
+
 ```
 Map<String, Object> requestBody = new HashMap<>();
         Map<String, String> systemMessage = new HashMap<>();
