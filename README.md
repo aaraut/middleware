@@ -1,4 +1,22 @@
 ```
+Provide a code snippet based on the following schema. Please do not include any introductory text, explanations, or comments. Just provide the code.
+
+Schema: {
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "age": {
+      "type": "integer"
+    }
+  },
+  "required": ["name", "age"]
+}
+
+```
+
+```
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
