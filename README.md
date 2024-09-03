@@ -17,6 +17,101 @@ Schema: {
 ```
 
 ```
+package com.example.middleware.service;
+
+import com.example.middleware.model.DataModel;
+import com.example.middleware.repository.DataModelRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+@Service
+public class FallbackService {
+
+    @Autowired
+    private DataModelRepository repository;
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    private final String apiKey = "API-full"; // Replace with your actual API key
+    private final String nucleusUrl = "https://openai-nucleus-dev.azpriv-cloud.ubs.net/api/v1/openai-sandbox/chat";
+
+    public void saveFallbackData(String method, String url, String requestBody, String responseBody) {
+        Optional<DataModel> existingDataModel = repository.findByActionAndUrlAndRequest(method, url, requestBody);
+
+        DataModel dataModel;
+        if (existingDataModel.isPresent()) {
+            // Update existing record
+            dataModel = existingDataModel.get();
+            dataModel.setResponse(responseBody); // Set response as a String
+        } else {
+            // Create new record
+            dataModel = new DataModel();
+            dataModel.setAction(method);
+            dataModel.setUrl(url);
+            dataModel.setRequest(requestBody); // Set request as a String
+            dataModel.setResponse(responseBody); // Set response as a String
+        }
+
+        repository.save(dataModel);
+    }
+
+    public Optional<DataModel> getFallbackData(String action, String url, String request) {
+        Optional<DataModel> fallbackData = repository.findByActionAndUrlAndRequest(action, url, request);
+
+        if (!fallbackData.isPresent()) {
+            // Generate dummy data using Nucleus ChatGPT
+            try {
+                String schema = "Your schema here"; // Replace with actual schema
+                String generatedResponse = generateDummyData(schema);
+                DataModel dataModel = new DataModel();
+                dataModel.setAction(action);
+                dataModel.setUrl(url);
+                dataModel.setRequest(request); // Set request as a String
+                dataModel.setResponse(generatedResponse); // Set response as a String
+                repository.save(dataModel);
+                return Optional.of(dataModel);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return Optional.empty();
+            }
+        }
+
+        return fallbackData;
+    }
+
+    private String generateDummyData(String schema) throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("api-key", apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        Map<String, String> systemMessage = new HashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "Assistant is a large language model trained by OpenAI.");
+
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", schema);
+
+        requestBody.put("messages", new Map[]{systemMessage, userMessage});
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(nucleusUrl, entity, Map.class);
+        Map<String, Object> jsonResponse = response.getBody();
+        return jsonResponse != null ? (String) jsonResponse.get("result").get("content") : "No response content";
+    }
+}
+```
+
+```
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
